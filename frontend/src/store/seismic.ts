@@ -24,20 +24,18 @@ export const useSeismicStore = defineStore('seismic', () => {
   ])
 
   function generateMockWaveform(): WaveformData {
-    const sr = 100  // sampling rate Hz
-    const duration = 60  // seconds
+    const sr = 100
+    const duration = 60
     const n = sr * duration
     const time = Array.from({ length: n }, (_, i) => i / sr)
     const bhz: number[] = [], bhn: number[] = [], bhe: number[] = []
 
     for (let i = 0; i < n; i++) {
       const t = time[i]
-      // Background noise
       let vz = (Math.random() - 0.5) * 0.02
       let ns = (Math.random() - 0.5) * 0.02
       let ew = (Math.random() - 0.5) * 0.02
 
-      // P-wave arrival at t=10s
       if (t > 10 && t < 18) {
         const amp = 0.8 * Math.exp(-(t - 12) * (t - 12) / 8)
         vz += amp * Math.sin(2 * Math.PI * 8 * t)
@@ -45,7 +43,6 @@ export const useSeismicStore = defineStore('seismic', () => {
         ew += amp * 0.3 * Math.sin(2 * Math.PI * 8 * t + 1.0)
       }
 
-      // S-wave arrival at t=22s
       if (t > 22 && t < 40) {
         const amp = 1.5 * Math.exp(-(t - 28) * (t - 28) / 30)
         vz += amp * 0.4 * Math.sin(2 * Math.PI * 4 * t)
@@ -53,7 +50,6 @@ export const useSeismicStore = defineStore('seismic', () => {
         ew += amp * Math.sin(2 * Math.PI * 4 * t + 0.8)
       }
 
-      // Surface waves at t=35s
       if (t > 35 && t < 55) {
         const amp = 2.0 * Math.exp(-(t - 42) * (t - 42) / 50)
         vz += amp * Math.sin(2 * Math.PI * 1.5 * t)
@@ -131,25 +127,25 @@ export const useSeismicStore = defineStore('seismic', () => {
     }
   }
 
-  const favoriteIds = ref<Set<string>>(new Set())
+  const favoriteEventIds = ref<string[]>([])
   const favoriteEvents = ref<FavoriteEvent[]>([])
 
+  const favoriteIdSet = computed(() => new Set(favoriteEventIds.value))
+
   function isFavorited(eventId: string): boolean {
-    return favoriteIds.value.has(eventId)
+    return favoriteIdSet.value.has(eventId)
   }
 
   async function toggleFavorite(eventId: string, note?: string) {
-    if (favoriteIds.value.has(eventId)) {
+    if (isFavorited(eventId)) {
       try {
         const resp = await fetch(`/api/favorites/${eventId}`, { method: 'DELETE' })
         if (resp.ok || resp.status === 404) {
-          favoriteIds.value.delete(eventId)
-          favoriteIds.value = new Set(favoriteIds.value)
+          favoriteEventIds.value = favoriteEventIds.value.filter(id => id !== eventId)
           favoriteEvents.value = favoriteEvents.value.filter(e => e.id !== eventId)
         }
       } catch {
-        favoriteIds.value.delete(eventId)
-        favoriteIds.value = new Set(favoriteIds.value)
+        favoriteEventIds.value = favoriteEventIds.value.filter(id => id !== eventId)
         favoriteEvents.value = favoriteEvents.value.filter(e => e.id !== eventId)
       }
     } else {
@@ -160,15 +156,17 @@ export const useSeismicStore = defineStore('seismic', () => {
           body: JSON.stringify({ event_id: eventId, note: note || '' }),
         })
         if (resp.ok) {
-          favoriteIds.value.add(eventId)
-          favoriteIds.value = new Set(favoriteIds.value)
+          if (!favoriteEventIds.value.includes(eventId)) {
+            favoriteEventIds.value = [...favoriteEventIds.value, eventId]
+          }
           await loadFavorites()
         }
       } catch {
-        favoriteIds.value.add(eventId)
-        favoriteIds.value = new Set(favoriteIds.value)
+        if (!favoriteEventIds.value.includes(eventId)) {
+          favoriteEventIds.value = [...favoriteEventIds.value, eventId]
+        }
         const ev = events.value.find(e => e.id === eventId)
-        if (ev) {
+        if (ev && !favoriteEvents.value.some(f => f.id === eventId)) {
           favoriteEvents.value.push({
             ...ev,
             note: note || '',
@@ -193,7 +191,7 @@ export const useSeismicStore = defineStore('seismic', () => {
           note: e.note || '',
           favoritedAt: e.favorited_at || '',
         }))
-        favoriteIds.value = new Set(data.map((e: any) => e.id))
+        favoriteEventIds.value = data.map((e: any) => e.id)
       }
     } catch {
       // keep local state
@@ -204,6 +202,6 @@ export const useSeismicStore = defineStore('seismic', () => {
     waveform, picks, selectedStation, staWindow, ltaWindow, threshold,
     isLoading, events, stations,
     loadMockData, staLtaPicking, uploadAndAnalyze, generateMockWaveform,
-    favoriteIds, favoriteEvents, isFavorited, toggleFavorite, loadFavorites,
+    favoriteEvents, isFavorited, toggleFavorite, loadFavorites,
   }
 })

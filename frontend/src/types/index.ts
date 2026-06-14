@@ -29,3 +29,13 @@ export interface SeismicEvent {
   originTime: string
   location: string
 }
+
+export interface FavoriteEvent {
+  id: string
+  magnitude: number
+  depth: number
+  originTime: string
+  location: string
+  note: string
+  favoritedAt: string
+}

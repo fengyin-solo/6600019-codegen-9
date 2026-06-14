@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { WaveformData, PhasePick, Station, SeismicEvent } from '../types'
+import type { WaveformData, PhasePick, Station, SeismicEvent, FavoriteEvent } from '../types'
 
 export const useSeismicStore = defineStore('seismic', () => {
   const waveform = ref<WaveformData | null>(null)
@@ -131,9 +131,79 @@ export const useSeismicStore = defineStore('seismic', () => {
     }
   }
 
+  const favoriteIds = ref<Set<string>>(new Set())
+  const favoriteEvents = ref<FavoriteEvent[]>([])
+
+  function isFavorited(eventId: string): boolean {
+    return favoriteIds.value.has(eventId)
+  }
+
+  async function toggleFavorite(eventId: string, note?: string) {
+    if (favoriteIds.value.has(eventId)) {
+      try {
+        const resp = await fetch(`/api/favorites/${eventId}`, { method: 'DELETE' })
+        if (resp.ok || resp.status === 404) {
+          favoriteIds.value.delete(eventId)
+          favoriteIds.value = new Set(favoriteIds.value)
+          favoriteEvents.value = favoriteEvents.value.filter(e => e.id !== eventId)
+        }
+      } catch {
+        favoriteIds.value.delete(eventId)
+        favoriteIds.value = new Set(favoriteIds.value)
+        favoriteEvents.value = favoriteEvents.value.filter(e => e.id !== eventId)
+      }
+    } else {
+      try {
+        const resp = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_id: eventId, note: note || '' }),
+        })
+        if (resp.ok) {
+          favoriteIds.value.add(eventId)
+          favoriteIds.value = new Set(favoriteIds.value)
+          await loadFavorites()
+        }
+      } catch {
+        favoriteIds.value.add(eventId)
+        favoriteIds.value = new Set(favoriteIds.value)
+        const ev = events.value.find(e => e.id === eventId)
+        if (ev) {
+          favoriteEvents.value.push({
+            ...ev,
+            note: note || '',
+            favoritedAt: new Date().toISOString(),
+          })
+        }
+      }
+    }
+  }
+
+  async function loadFavorites() {
+    try {
+      const resp = await fetch('/api/favorites')
+      if (resp.ok) {
+        const data = await resp.json()
+        favoriteEvents.value = data.map((e: any) => ({
+          id: e.id,
+          magnitude: e.magnitude,
+          depth: e.depth,
+          originTime: e.origin_time,
+          location: e.location,
+          note: e.note || '',
+          favoritedAt: e.favorited_at || '',
+        }))
+        favoriteIds.value = new Set(data.map((e: any) => e.id))
+      }
+    } catch {
+      // keep local state
+    }
+  }
+
   return {
     waveform, picks, selectedStation, staWindow, ltaWindow, threshold,
     isLoading, events, stations,
-    loadMockData, staLtaPicking, uploadAndAnalyze, generateMockWaveform
+    loadMockData, staLtaPicking, uploadAndAnalyze, generateMockWaveform,
+    favoriteIds, favoriteEvents, isFavorited, toggleFavorite, loadFavorites,
   }
 })

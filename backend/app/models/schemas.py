@@ -24,3 +24,8 @@ class SeismicEvent(BaseModel):
     depth: float
     origin_time: str
     location: str
+
+
+class FavoriteEvent(BaseModel):
+    event_id: str
+    note: Optional[str] = None

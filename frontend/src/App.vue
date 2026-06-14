@@ -59,9 +59,40 @@
       <!-- Events -->
       <div class="bg-gray-800 rounded-xl p-3">
         <h3 class="text-cyan-300 font-bold text-sm mb-2">地震事件目录</h3>
-        <div v-for="e in store.events" :key="e.id" class="bg-gray-700 rounded p-2 mb-1 text-xs">
-          M{{ e.magnitude }} {{ e.location }}
-          <div class="text-gray-500">深度 {{ e.depth }}km | {{ e.originTime.slice(0, 16) }}</div>
+        <div v-for="e in store.events" :key="e.id" class="bg-gray-700 rounded p-2 mb-1 text-xs group relative">
+          <div class="flex items-center justify-between">
+            <div>
+              M{{ e.magnitude }} {{ e.location }}
+              <div class="text-gray-500">深度 {{ e.depth }}km | {{ e.originTime.slice(0, 16) }}</div>
+            </div>
+            <button
+              @click="store.toggleFavorite(e.id)"
+              class="ml-2 text-base transition-colors shrink-0"
+              :class="store.isFavorited(e.id) ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-300'"
+              :title="store.isFavorited(e.id) ? '取消收藏' : '收藏为重点事件'"
+            >★</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Favorites -->
+      <div class="bg-gray-800 rounded-xl p-3 border border-yellow-500/30">
+        <h3 class="text-yellow-400 font-bold text-sm mb-2">⭐ 重点事件（需复核）</h3>
+        <div v-if="store.favoriteEvents.length === 0" class="text-gray-600 text-xs py-1">
+          点击事件右侧 ★ 标记为重点事件
+        </div>
+        <div v-for="f in store.favoriteEvents" :key="f.id" class="bg-gray-700 rounded p-2 mb-1 text-xs border-l-2 border-yellow-400">
+          <div class="flex items-center justify-between">
+            <span class="text-yellow-300 font-bold">M{{ f.magnitude }}</span>
+            <span>{{ f.location }}</span>
+            <button
+              @click="store.toggleFavorite(f.id)"
+              class="text-yellow-400 hover:text-yellow-200 ml-1"
+              title="取消收藏"
+            >✕</button>
+          </div>
+          <div class="text-gray-500 mt-0.5">深度 {{ f.depth }}km | {{ f.originTime.slice(0, 16) }}</div>
+          <div v-if="f.note" class="text-cyan-300 mt-0.5">备注: {{ f.note }}</div>
         </div>
       </div>
     </div>
